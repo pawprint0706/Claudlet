@@ -47,6 +47,28 @@ def test_matches_codex_with_suffix():
     assert mod.resolve_claude_pid(90, info) == 80
 
 
+def test_agent_kind_for_resolved_pid():
+    info = tree({80: ("codex.exe", 1), 70: ("claude-code", 1),
+                 60: ("pwsh.exe", 1)})
+    assert mod.agent_kind_for_pid(80, info) == "codex"
+    assert mod.agent_kind_for_pid(70, info) == "claude"
+    assert mod.agent_kind_for_pid(60, info) is None
+    assert mod.agent_kind_for_pid(0, info) is None
+
+
+def test_launch_pet_passes_resolved_agent_to_child(monkeypatch):
+    launched = []
+    monkeypatch.delenv("CLAUDLET_AGENT", raising=False)
+    monkeypatch.setattr(mod, "resolve_claude_pid", lambda *_args: 80)
+    monkeypatch.setattr(mod, "_proc_info", tree({80: ("codex.exe", 1)}))
+    monkeypatch.setattr(mod.subprocess, "Popen",
+                        lambda args, **kwargs: launched.append((args, kwargs)))
+
+    mod._launch_pet("session-1", "unknown")
+
+    assert launched[0][1]["env"]["CLAUDLET_AGENT"] == "codex"
+
+
 def test_proc_info_windows_branch_walks_via_win32_table(monkeypatch):
     # _proc_info has no /proc on Windows; it must fall back to a Toolhelp
     # snapshot (win32.proc_table) instead of always returning None.

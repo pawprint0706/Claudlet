@@ -111,6 +111,21 @@ def resolve_claude_pid(start_pid, proc_info, max_hops=32):
     return 0
 
 
+def agent_kind_for_pid(pid, proc_info):
+    """Return the supported agent kind for an already-resolved process."""
+    if not pid:
+        return None
+    info = proc_info(pid)
+    if info is None:
+        return None
+    comm = info[0].lower()
+    if "codex" in comm:
+        return "codex"
+    if "claude" in comm:
+        return "claude"
+    return None
+
+
 def ancestor_chain(start_pid, proc_info, max_hops=32):
     """Ancestor pids of `start_pid`, NEAREST FIRST, excluding start_pid itself.
 
@@ -236,6 +251,11 @@ def _launch_pet(session_id, host):
     # Make sure the child can import claudlet from a source checkout (pipx
     # installs already have it importable; the extra PYTHONPATH is harmless).
     env = dict(os.environ)
+    # Codex hook runners do not always export their session variables to the
+    # detached GUI child.  The long-lived parent executable is authoritative.
+    agent_kind = agent_kind_for_pid(agent_pid, _proc_info)
+    if agent_kind:
+        env["CLAUDLET_AGENT"] = agent_kind
     src_dir = os.path.dirname(os.path.dirname(os.path.abspath(hostinfo.__file__)))
     env["PYTHONPATH"] = src_dir + os.pathsep + env.get("PYTHONPATH", "")
     subprocess.Popen(
