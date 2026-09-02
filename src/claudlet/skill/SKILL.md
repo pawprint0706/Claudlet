@@ -1,32 +1,24 @@
 ---
 name: claudlet
-description: Launch/attach the claudlet desktop buddy, trigger a motion, configure it, or update it. "/claudlet" attaches a pet to the CURRENT session; "/claudlet standalone" launches an unattached roaming pet; "/claudlet <motion>" plays a motion (jump/wave/sing/juggle/float/celebrate/thinking/sleeping/error/attention); "/claudlet list" lists motions; "/claudlet stop" clears a held motion; "/claudlet config" shows/edits the user config (which motion shows for which activity, language); "/claudlet update" pulls the latest version and reinstalls. Use when the user types "/claudlet", "펫 띄워", "펫 붙여", "펫 점프", "펫 설정", "펫 커스터마이즈", "펫 업데이트", "update the pet", "start the pet", "configure the pet".
+description: Launch or control the claudlet desktop buddy for Claude Code or Codex CLI. Use for /claudlet, $claudlet, attaching or starting the pet, motions, pet configuration, and pet updates.
 ---
 
 # claudlet — launch the desktop buddy
 
 A frameless roaming pixel creature. By default this **attaches** a pet to the
-**current session** (so it reacts to this session's Claude Code activity). Pass
+**current session** (so it reacts to this session's agent activity). Pass
 `standalone` for an unattached one.
 
 ## How to run a claudlet command
 
-claudlet ships console commands (`claudlet-attach`, `claudlet-motion`,
-`claudlet-config`, `claudlet-version`, `claudlet-install`). Define this helper once, then use it in the sections
-below — it prefers the installed command (pipx/pip put it on PATH) and falls
-back to a source checkout's `bin/` shim:
-```bash
-cpet() {  # usage: cpet <subcmd> [args...]   e.g. cpet attach --standalone
-  local name="claudlet-$1"; shift
-  if command -v "$name" >/dev/null 2>&1; then "$name" "$@"
-  elif [ -x "$HOME/claudlet/bin/$name" ]; then "$HOME/claudlet/bin/$name" "$@"
-  else echo "claudlet isn't installed — see the README"; return 127; fi
-}
-```
+claudlet ships `claudlet-attach`, `claudlet-motion`, `claudlet-config`,
+`claudlet-version`, and `claudlet-install`. Invoke these commands directly.
+If one is not on `PATH`, use the matching shim under `~/claudlet/bin/`; on
+Windows run that shim with Python.
 
 ## Routing
 
-Look at the argument the user passed after `/claudlet`:
+Look at the argument the user passed after `/claudlet` or `$claudlet`:
 
 - a **motion name** (`jump`, `wave`, `sing`, `juggle`, `float`, `celebrate`,
   `thinking`, `sleeping`, `error`, `attention`), or `list`, or `stop`/`clear`
@@ -41,10 +33,11 @@ Look at the argument the user passed after `/claudlet`:
 ## Attach (default)
 
 ```bash
-cpet attach
+claudlet-attach
 ```
-`claudlet-attach` finds this session (`$CLAUDE_CODE_SESSION_ID`, else the
-newest transcript under `~/.claude/projects/`), detects the host terminal/IDE
+`claudlet-attach` finds this session (`CLAUDE_CODE_SESSION_ID`,
+`CODEX_THREAD_ID`, or `CODEX_SESSION_ID`; otherwise the newest Claude
+transcript), detects the host terminal/IDE
 so click-to-focus targets the right window, skips if a pet is already attached
 (the same liveness handshake the hook uses — a bare connect can't tell a live
 pet from a reused stale port), and launches a detached pet bound to the session.
@@ -54,58 +47,60 @@ It prints `attached to session ...` or `already attached ...`.
 claudlet hooks are installed (`claudlet-install`) AND this session loaded
 them. If hooks were installed *after* this session started, restart the session
 (or the pet attaches but stays idle). New sessions auto-attach their own pet via
-the SessionStart hook, so `/claudlet` is mainly for sessions that predate the
+the SessionStart hook, so `/claudlet`/`$claudlet` is mainly for sessions that predate the
 install, or to bring a closed pet back.
 
 ## Standalone
 
 An unattached, decorative pet that reacts to no particular session:
 ```bash
-cpet attach --standalone
+claudlet-attach --standalone
 ```
 
 ## Trigger a motion
 
 ```bash
-cpet motion <arg>    # jump | wave | sing | juggle | float | celebrate | thinking | sleeping | error | attention | stop | list
+claudlet-motion <arg>    # jump | wave | sing | juggle | float | celebrate | thinking | sleeping | error | attention | stop | list
 ```
-e.g. `cpet motion jump`, `cpet motion float` (holds until `cpet motion stop`),
-`cpet motion list`. It broadcasts to every running pet and prints how many
+e.g. `claudlet-motion jump`, `claudlet-motion float` (holds until
+`claudlet-motion stop`), `claudlet-motion list`. It broadcasts to every running pet and prints how many
 reacted; if it says `-> 0 pet(s)`, none is running — offer to attach one with
-`/claudlet`.
+`/claudlet` or `$claudlet`.
 
 ## Configure
 
-The user config remaps **which creature motion shows for which Claude Code
+The user config remaps **which creature motion shows for which coding-agent
 activity**, plus **language**. After a pipx install it's buried
 (`~/.config/claudlet/config.json`, or `%USERPROFILE%\.config\claudlet\
 config.json` on Windows), so use `claudlet-config` to locate/inspect it — never
 guess the path.
 
 ```bash
-cpet config          # show: absolute path, status, current values, IGNORED entries, valid values
-cpet config init     # create a starter template if none exists
-cpet config open     # open it in the OS default editor
+claudlet-config          # show: absolute path, status, current values, IGNORED entries, valid values
+claudlet-config init     # create a starter template if none exists
+claudlet-config open     # open it in the OS default editor
 ```
 
-`cpet config` prints the resolved absolute path and — crucially — any entries
+`claudlet-config` prints the resolved absolute path and — crucially — any entries
 that are **present in the file but silently dropped** (a typo'd state or unknown
 slot) under `ignored:`. When something "doesn't work," check there first.
 
 **Editing on the user's behalf.** When the user asks for a change in natural
 language (e.g. "make it jump when I run Bash", "switch it to Korean"):
-1. run `cpet config` to get the absolute path + current values,
-2. `Read` that file (run `cpet config init` first if it's missing),
+1. run `claudlet-config` to get the absolute path + current values,
+2. read that file (run `claudlet-config init` first if it's missing),
 3. edit the JSON **directly with your own Edit/Write tools** using the schema
    below,
-4. run `cpet config` again and confirm nothing landed under `ignored:`,
-5. tell the user to **restart the pet** (right-click → 종료, then `/claudlet`)
+4. run `claudlet-config` again and confirm nothing landed under `ignored:`,
+5. tell the user to **restart the pet** (right-click → 종료, then invoke the skill)
    for it to apply — config is read at pet startup.
 
 Schema (all keys optional; unknown keys / invalid values are dropped):
 ```json
 {
   "lang": "auto",                        // "ko" | "en" | "auto"
+  "palette": "auto",                     // global fallback
+  "palettes": { "codex": "shiny_violet", "claude": "default" },
   "tools":      { "Bash": "work_computer", "*": "work_computer" },
   "events":     { "prompt": "thinking", "celebrate": "juggle" },
   "raw_events": { "PostToolUse": "celebrate", "SubagentStop": "wave" },
@@ -113,6 +108,9 @@ Schema (all keys optional; unknown keys / invalid values are dropped):
             "screen": "primary", "gap": 4, "offset": {"x": 0, "y": 0} }
 }
 ```
+- `palette` / `palettes` — global palette and optional per-agent overrides.
+  Values: `auto`, `default`, `shiny_teal`, `shiny_violet`. Agent keys:
+  `claude`, `codex`. `CLAUDLET_PALETTE` still overrides both for one process.
 - `tools` — tool name → state (`"*"` = fallback for unmapped tools).
 - `events` — event slot → state. Slots: `start`, `prompt`, `done`,
   `celebrate`, `error`, `permission`, `idle_prompt`, `asking`, `autopilot`.
@@ -128,7 +126,7 @@ Schema (all keys optional; unknown keys / invalid values are dropped):
   `enabled: false` restores the old roaming behaviour — same switch as the
   right-click menu's "자유롭게 돌아다니기" / "Roam freely".
   Note `roam_area` / `no_go` only bind a ROAMING pet; a docked one ignores them.
-- Valid states (the `cpet config` output also lists these): `work_computer`,
+- Valid states (the `claudlet-config` output also lists these): `work_computer`,
   `work_search`, `work_web`, `work_agent`, `work_skill`, `thinking`,
   `celebrate`, `error`, `attention`, `asking`, `autopilot`, `sleeping`, `idle`,
   `jump`, `wave`, `sing`, `juggle`.
@@ -146,7 +144,7 @@ also the one thing that shouldn't happen silently mid-session. Steps:
 
 1. **Show current vs latest** (this you may run — it's read-only):
    ```bash
-   cpet version
+   claudlet-version
    ```
 2. **Detect install method** to pick the command: a source checkout has
    `$HOME/claudlet/.git`; otherwise it's a pipx/pip install.
@@ -165,11 +163,12 @@ also the one thing that shouldn't happen silently mid-session. Steps:
    two channels switch cleanly in both directions. The *latest* channel needs
    `git` on PATH; *release* does not — if git is missing, steer them to release.)
 
-   (Tell them to type the line **including the leading `!`** — that runs it in
-   this Claude Code session's shell.)
+   Give a normal shell command in Codex CLI; use Claude Code's `!` prefix only
+   when that host requires it.
 4. **Then reload**: the new hooks + pet code only take effect fresh. Tell them to
-   close any running pet (right-click → 종료), **exit this session, and re-enter
-   with `claude --continue`** (or start a new session). Until then the pet keeps
+   close any running pet (right-click → 종료), then restart or resume the agent
+   session. Codex users must review changed hooks with `/hooks`, then restart or
+   resume once more so `SessionStart` runs. Until then the pet keeps
    running the old code and the current session keeps the old hooks.
 5. **What changed**: point them at the release notes so they see what's new —
    <https://github.com/YeeDochi/Claudlet/releases/latest> (`claudlet-install`

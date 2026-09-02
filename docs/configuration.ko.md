@@ -45,6 +45,21 @@ jump  wave  sing  juggle
 { "lang": "en" }
 ```
 
+## 팔레트
+
+`palette`는 전체 기본 팔레트를 정하고, `palettes`는 펫을 시작한 코딩 에이전트별로
+그 값을 덮어써요:
+
+```json
+{
+  "palette": "auto",
+  "palettes": { "codex": "shiny_violet", "claude": "default" }
+}
+```
+
+팔레트 값은 `auto`, `default`, `shiny_teal`, `shiny_violet`입니다.
+`CLAUDLET_PALETTE` 환경 변수는 한 프로세스에 한해 가장 높은 우선순위로 적용됩니다.
+
 ## 위치 (도크)
 
 펫은 기본적으로 모니터 **오른쪽 아래 구석**에 고정돼서 서요. 여러 마리를 띄우면

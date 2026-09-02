@@ -5,6 +5,7 @@ File (JSON, all keys optional), at ``$XDG_CONFIG_HOME/claudlet/config.json``
 (default ``~/.config/claudlet/config.json``)::
 
     {
+      "palettes":   { "codex": "shiny_violet", "claude": "default" },
       "tools":      { "Bash": "work_search", "Grep": "sing", "*": "work_computer" },
       "events":     { "prompt": "thinking", "celebrate": "juggle" },
       "raw_events": { "PostToolUse": "celebrate", "SubagentStop": "wave" }
@@ -39,6 +40,7 @@ DEFAULT_DOCK = {"enabled": True, "anchor": dockgeom.DEFAULT_ANCHOR,
 SHINY_PALETTES = ("shiny_teal", "shiny_violet")
 SHINY_CHANCE = 0.02
 _PALETTE_NAMES = ("auto", "default") + SHINY_PALETTES
+AGENT_NAMES = ("claude", "codex")
 
 
 def config_path():
@@ -102,6 +104,11 @@ def _clean(raw):
     palette = raw.get("palette")
     if palette not in _PALETTE_NAMES:
         palette = "auto"
+    palettes = {}
+    if isinstance(raw.get("palettes"), dict):
+        for agent, value in raw["palettes"].items():
+            if agent in AGENT_NAMES and value in _PALETTE_NAMES:
+                palettes[agent] = value
 
     def _rect(v):
         if not isinstance(v, dict):
@@ -123,6 +130,7 @@ def _clean(raw):
     return {"tool_states": tools, "event_states": events,
             "raw_events": raw_events, "lang": lang,
             "roam_area": roam_area, "no_go": no_go, "palette": palette,
+            "palettes": palettes,
             "dock": _clean_dock(raw.get("dock"))}
 
 
@@ -167,9 +175,28 @@ def resolve_palette(config_value, roll, pick=0.0):
     return "default"
 
 
+def detect_agent(environ=None):
+    """Return the coding-agent kind represented by an environment, if known."""
+    env = os.environ if environ is None else environ
+    explicit = env.get("CLAUDLET_AGENT")
+    if explicit in AGENT_NAMES:
+        return explicit
+    if env.get("CODEX_THREAD_ID") or env.get("CODEX_SESSION_ID"):
+        return "codex"
+    if env.get("CLAUDE_CODE_SESSION_ID"):
+        return "claude"
+    return None
+
+
+def palette_for_agent(config, agent):
+    """Configured palette for ``agent``, falling back to the global value."""
+    return config.get("palettes", {}).get(agent, config.get("palette", "auto"))
+
+
 def _empty_config():
     return {"tool_states": {}, "event_states": {}, "raw_events": {},
             "lang": "auto", "roam_area": None, "no_go": [], "palette": "auto",
+            "palettes": {},
             "dock": default_dock()}
 
 

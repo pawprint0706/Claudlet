@@ -8,7 +8,7 @@
 
 Clones (or updates) the repo, ensures dependencies (PyQt6, plus
 pyobjc-framework-Quartz on macOS — the latter via bin/claudlet-install), and
-registers the Claude Code hooks + skill. Re-run anytime to update.
+registers the Claude Code and Codex CLI hooks + skill. Re-run anytime to update.
 Override the location with the CLAUDLET_DIR environment variable.
 """
 import os

@@ -5,7 +5,7 @@
 ## How it works
 
 ```
-Claude Code ──hook──▶ claudlet-hook ──loopback TCP──▶ pet (PyQt6 window)
+Claude Code / Codex CLI ──hook──▶ claudlet-hook ──loopback TCP──▶ pet (PyQt6 window)
 ```
 
 - **`src/claudlet/pet.py`** — the pet: a frameless, translucent, always-on-top
@@ -13,7 +13,7 @@ Claude Code ──hook──▶ claudlet-hook ──loopback TCP──▶ pet (P
   position itself, which native Wayland forbids; on macOS/Windows it uses the
   native Qt platform.
 - **`src/claudlet/creature.py`** — the creature renderer (pure `QPainter`, state-driven).
-- **`bin/claudlet-hook`** — forwards each Claude Code hook event to the pet over
+- **`bin/claudlet-hook`** — forwards each coding-agent hook event to the pet over
   a per-session loopback TCP socket (port published in
   `$XDG_RUNTIME_DIR/claudlet-<session>.port`; stock Windows Python builds have
   no unix domain sockets, so TCP is used everywhere for one code path) and
@@ -25,7 +25,7 @@ All `bin/*` tools are Python, so they run wherever Python does.
 
 - **Drag** to pick it up and throw it — it falls with gravity and bounces. Fling it
   inside a window and it bounces off the interior walls; drag it out to leave.
-- **Left-click** — bring the Claude Code terminal/IDE to the front, down to **this
+- **Left-click** — bring the coding-agent terminal/IDE to the front, down to **this
   session's tab**: Windows Terminal (like KDE's Konsole) runs every tab in one
   process, so raising the window alone can't tell two sessions apart. The tab is
   matched by its title; when no tab matches, the window is simply raised.
@@ -37,21 +37,23 @@ All `bin/*` tools are Python, so they run wherever Python does.
   (jump / wave / sing / juggle / celebrate) · *주머니 쏙* (pocket — tucks into a slit
   in the screen and peeks its head out, staying put and not covering your work) ·
   *quiet (mute)* · *quit*.
-- **Motions from the CLI/skill** — `/claudlet <motion>` (or
+- **Motions from the CLI/skill** — `/claudlet <motion>` or `$claudlet <motion>` (or
   `bin/claudlet-motion <motion>`): `jump`, `wave`, `sing`, `juggle`, `float`, plus
   `celebrate` / `thinking` / `sleeping` / `error` / `attention`; `list`, `stop`.
 
-## The `/claudlet` skill
+## The claudlet skill
 
-`claudlet-install` links this skill into `~/.claude/skills/` for you. In any
-session, `/claudlet` (or "펫 띄워") launches a pet on demand — handy for a session
+`claudlet-install` links this skill into `~/.claude/skills/` and
+`~/.agents/skills/`. In any session, `/claudlet` in Claude Code or `$claudlet`
+in Codex CLI launches a pet on demand — handy for a session
 that predates the install, or to bring a closed pet back. Per-session auto-launch
 still comes from the hooks.
 
 Manual link, if you installed hooks only:
 
 ```bash
-ln -s ~/claudlet/skills/claudlet ~/.claude/skills/claudlet
+ln -s ~/claudlet/src/claudlet/skill ~/.claude/skills/claudlet
+ln -s ~/claudlet/src/claudlet/skill ~/.agents/skills/claudlet
 ```
 
 ## Autostart
@@ -72,7 +74,8 @@ claudlet-uninstall --purge  # the above + delete ~/.config/claudlet
 ```
 
 `claudlet-uninstall` stops any running pets, removes the hooks from
-`settings.json`, unlinks the `/claudlet` skill, and clears stray port files.
+`~/.claude/settings.json` and `$CODEX_HOME/hooks.json`, unlinks both skill
+entries, and clears stray port files.
 `--purge` additionally deletes your config. It does **not** remove the package
 itself — it prints the command to do that (`pipx uninstall claudlet` or
 `pip uninstall claudlet`). `claudlet-install --remove` is a synonym.

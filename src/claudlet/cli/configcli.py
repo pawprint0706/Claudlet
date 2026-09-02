@@ -41,6 +41,17 @@ def diagnose(raw):
             ignored.append("raw_events.%s=%r (not a valid state)" % (key, val))
     if "lang" in raw and raw.get("lang") not in ("ko", "en", "auto"):
         ignored.append("lang=%r (use ko | en | auto)" % (raw.get("lang"),))
+    p = raw.get("palettes")
+    if "palettes" in raw and not isinstance(p, dict):
+        ignored.append("palettes=%r (must be an object)" % (p,))
+    elif isinstance(p, dict):
+        for agent, value in p.items():
+            if agent not in petconfig.AGENT_NAMES:
+                ignored.append("palettes.%s=%r (use claude | codex)"
+                               % (agent, value))
+            elif value not in petconfig._PALETTE_NAMES:
+                ignored.append("palettes.%s=%r (invalid palette)"
+                               % (agent, value))
     d = raw.get("dock")
     if "dock" in raw and not isinstance(d, dict):
         ignored.append("dock=%r (must be an object)" % (d,))
@@ -52,7 +63,8 @@ def diagnose(raw):
 
 
 _DEFAULTS = {"tool_states": {}, "event_states": {}, "raw_events": {},
-             "lang": "auto", "dock": petconfig.default_dock()}
+             "lang": "auto", "palette": "auto", "palettes": {},
+             "dock": petconfig.default_dock()}
 
 
 def build_report(path=None):
@@ -147,6 +159,8 @@ def render(r):
         "config: " + r["path"],
         "status: " + status,
         "lang:   " + acc["lang"],
+        "palette:  " + acc.get("palette", "auto"),
+        "palettes: " + json.dumps(acc.get("palettes", {}), ensure_ascii=False),
         "tools:      " + json.dumps(acc["tool_states"], ensure_ascii=False),
         "events:     " + json.dumps(acc["event_states"], ensure_ascii=False),
         "raw_events: " + json.dumps(acc["raw_events"], ensure_ascii=False),

@@ -58,14 +58,14 @@ DEFAULT_EVENT_STATES = {
 # a question (AskUserQuestion) or a plan awaiting approval (ExitPlanMode). They
 # arrive as PreToolUse and map to the calm, expectant `asking` state — finer than
 # the `attention` alert used for permission prompts.
-ASK_TOOLS = {"AskUserQuestion", "ExitPlanMode"}
+ASK_TOOLS = {"AskUserQuestion", "ExitPlanMode", "request_user_input"}
 
 # tools that DISPATCH a subagent. PreToolUse with one of these opens an
 # "agent working" window that stays open until a matching SubagentStop, tracked
 # as a per-session counter (see StateEngine.agents_active) so a companion can
 # show beside the creature for the whole run — independent of the main display
 # state, which follows the parent's own tool use meanwhile (background agents).
-AGENT_TOOLS = {"Agent", "Task"}
+AGENT_TOOLS = {"Agent", "Task", "spawn_agent"}
 
 # states a user is allowed to map a tool/event to (expressive display states;
 # excludes internal/mode-only ones like walk/held/falling/float). Kept as a plain
@@ -212,6 +212,8 @@ class StateEngine:
                 s.set_state(self._events["permission"], now)
             elif nt == "idle_prompt":
                 s.set_state(self._events["idle_prompt"], now)
+        elif name == "PermissionRequest":
+            s.set_state(self._events["permission"], now)
         elif name == "SubagentStop":
             if not self._reconcile_agents(s, ev, now):
                 s.agents = max(0, s.agents - 1)    # legacy: one subagent finished

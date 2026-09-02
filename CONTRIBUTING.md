@@ -21,10 +21,10 @@ is different from `pipx install claudlet`, which copies the package into an
 isolated venv that only updates on a fresh `pipx upgrade`/`pipx install
 --force` — don't try to hand-edit that copy.
 
-Run a pet from the checkout, and point your own Claude Code at it:
+Run a pet from the checkout, and point your Claude Code or Codex CLI at it:
 ```bash
 claudlet             # launch a standalone pet from this checkout
-claudlet-install     # register hooks + the /claudlet skill, so a real session drives it
+claudlet-install     # register hooks + skill, so a real agent session drives it
 ```
 
 ## Running tests
@@ -73,7 +73,7 @@ permission gotcha and `claudlet-macos-diag` troubleshooting.
 ## Reporting bugs / requesting features
 
 Open a GitHub issue. Please include your OS, the output of `claudlet-version`,
-and — for pet-behavior bugs — which Claude Code hook events were involved if
+and — for pet-behavior bugs — which agent hook events were involved if
 you know them. There's no built-in event log yet, so precise repro steps help
 a lot.
 

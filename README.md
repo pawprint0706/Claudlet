@@ -4,8 +4,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/claudlet)](https://pypi.org/project/claudlet/)
 
-A tiny pixel creature that lives on your desktop and reacts to **Claude Code** in
-real time — it types while Claude works, waits when Claude needs you, celebrates
+A tiny pixel creature that lives on your desktop and reacts to **Claude Code or
+Codex CLI** in real time — it types while your agent works, waits when it needs you, celebrates
 when it's done, and roams around while you code. Click it to bring the terminal
 back to the front.
 
@@ -55,24 +55,26 @@ Each companion wears a random hat so you can tell them apart:
 
 Install with [pipx](https://pipx.pypa.io) (an isolated app install — pulls the
 deps, incl. `pyobjc-framework-Quartz` on macOS, and puts the `claudlet*`
-commands on your PATH), then wire it into Claude Code:
+commands on your PATH), then wire it into Claude Code and Codex CLI:
 
 ```bash
 pipx install claudlet
-claudlet-install      # registers the hooks + /claudlet skill (idempotent)
+claudlet-install      # registers both agents' hooks + claudlet skill (idempotent)
 ```
 
 Check your version with `claudlet-version` (installed vs latest release). Update
 to the newest **release** with `pipx upgrade claudlet && claudlet-install`, or to
 the tip of **develop** (edge) with `pipx install --force "git+https://github.com/YeeDochi/Claudlet@develop" && claudlet-install`.
-Either way, restart your Claude Code session afterward (`claude --continue`) so the
-new hooks + pet code load. Or just run `/claudlet update` (release) /
-`/claudlet update latest` (master) from inside Claude Code and follow the prompts.
+Either way, restart your agent session afterward so the new hooks + pet code load.
+Codex CLI also requires a one-time review in `/hooks`: trust the claudlet entries,
+then start or resume the session once more so its `SessionStart` hook can run.
+Use `/claudlet update` in Claude Code or `$claudlet update` in Codex.
 
 To uninstall, **order matters — unhook first, then remove the package.**
 `claudlet-uninstall` is the *only* step that removes the hooks from
-`~/.claude/settings.json`; if you delete the package first, those hooks linger and
-Claude Code keeps trying to run a `claudlet-hook` that no longer exists.
+`~/.claude/settings.json` and `$CODEX_HOME/hooks.json` (normally
+`~/.codex/hooks.json`); if you delete the package first, those hooks linger and
+the agent keeps trying to run a `claudlet-hook` that no longer exists.
 
 ```bash
 claudlet-uninstall        # stops pets, unregisters the hooks + /claudlet skill
@@ -98,11 +100,12 @@ rm -rf ~/claudlet                                   # Windows: rmdir /s "%USERPR
 ```
 
 **Already removed the package without unhooking?** The hook entries are still in
-`~/.claude/settings.json`. Reinstall just long enough to unhook cleanly:
+the Claude/Codex hook files. Reinstall just long enough to unhook cleanly:
 ```
 pipx install claudlet && claudlet-uninstall && pipx uninstall claudlet
 ```
-or open `~/.claude/settings.json` and delete the `claudlet-hook` entries by hand.
+or delete the `claudlet-hook` entries by hand from `~/.claude/settings.json` and
+`$CODEX_HOME/hooks.json` (normally `~/.codex/hooks.json`).
 </details>
 
 <details><summary>Without pipx — one-line source install</summary>
@@ -118,7 +121,7 @@ irm https://raw.githubusercontent.com/YeeDochi/Claudlet/master/install.py | pyth
 ```
 
 Unlike pipx, this does **not** put the `claudlet*` commands on your PATH — they
-live in `~/claudlet/bin`. The hooks still work (Claude Code calls them by full
+live in `~/claudlet/bin`. The hooks still work (the agents call them by full
 path), but to run `claudlet`, `claudlet-config`, `/claudlet update`, etc.
 yourself, add that dir to your PATH:
 ```bash
@@ -131,7 +134,7 @@ setx PATH "$env:USERPROFILE\claudlet\bin;$env:PATH"
 ```
 </details>
 
-New Claude Code sessions then auto-spawn a pet. Restart any already-running session
+New Claude Code and Codex CLI sessions then auto-spawn a pet. Restart any already-running session
 to pick up the hooks — or launch one now with `claudlet`.
 
 Best on **KDE Plasma**. Perching on and riding windows also works on **Windows**
@@ -160,20 +163,23 @@ happening at a glance.
 | Command | What it does |
 |---|---|
 | `claudlet` | Launch a pet right now (standalone). |
-| `claudlet-install` | Register the hooks + `/claudlet` skill in Claude Code — run once after installing. |
+| `claudlet-install` | Register hooks and the claudlet skill in Claude Code + Codex CLI. |
 | `claudlet-uninstall` | Stop pets, unregister the hooks + skill, clean up (`--purge` also deletes your config). |
 | `claudlet-config` | Show / scaffold / open the user config (`--path`, `init`, `open`). |
 | `claudlet-version` | Show the installed version vs the latest PyPI release. |
-| `claudlet-attach` | Attach a pet to the current Claude Code session. |
+| `claudlet-attach` | Attach a pet to the current Claude Code or Codex CLI session. |
 | `claudlet-motion <name>` | Play a motion on running pets (`jump`, `wave`, … ; `stop`, `list`). |
 | `claudlet-install-hooks` | Just the hooks half of `claudlet-install` (`--remove` to undo). |
 | `claudlet-macos-diag` | Print raw macOS window coordinates (perch troubleshooting). |
-| `claudlet-hook` | Internal — invoked by Claude Code's hooks, not by you. |
+| `claudlet-hook` | Internal — invoked by the coding agent's hooks, not by you. |
 
-### The `/claudlet` skill
+### The claudlet skill
 
-`claudlet-install` also links a `/claudlet` skill into Claude Code, so you can
-drive the pet straight from a prompt:
+`claudlet-install` links the skill into both agents. Invoke `/claudlet` in
+Claude Code or `$claudlet` in Codex CLI:
+
+The examples below use Claude Code's spelling; replace `/claudlet` with
+`$claudlet` in Codex CLI.
 
 - `/claudlet` — attach a pet to **this** session (so it reacts to the session's activity)
 - `/claudlet standalone` — an unattached, decorative pet

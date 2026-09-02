@@ -49,6 +49,21 @@ English):
 { "lang": "en" }
 ```
 
+## Palette
+
+`palette` sets the global palette. `palettes` can override it for the coding
+agent that started the pet:
+
+```json
+{
+  "palette": "auto",
+  "palettes": { "codex": "shiny_violet", "claude": "default" }
+}
+```
+
+Palette values are `auto`, `default`, `shiny_teal`, and `shiny_violet`.
+`CLAUDLET_PALETTE` remains the highest-priority one-process override.
+
 ## Placement (dock)
 
 By default the pet **stands docked in the bottom-right corner** of your monitor.

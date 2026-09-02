@@ -18,6 +18,17 @@ def test_forwards_permission_mode():
     assert msg["permission_mode"] == "auto"
 
 
+def test_codex_stop_requests_neutral_json_response(monkeypatch):
+    monkeypatch.setattr(mod.hostinfo, "read_session_port", lambda _sid: None)
+    monkeypatch.setattr(mod.sys, "argv", ["claudlet-hook", "Stop"])
+    monkeypatch.setattr(mod.sys, "stdin", io.StringIO(json.dumps({
+        "session_id": "codex", "hook_event_name": "Stop",
+        "turn_id": "turn-1", "model": "gpt-test",
+    })))
+
+    assert mod.main() is True
+
+
 def test_notification_forwards_type():
     msg = json.loads(mod.build_message(
         ["claudlet-hook", "Notification"],

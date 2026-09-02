@@ -190,6 +190,11 @@ def _companion_flags(platform):
     return base | Qt.WindowType.WindowStaysOnTopHint
 
 
+# Local preference (upstream issue #4): while roaming, keep the pet and its
+# companion fully visible instead of clipping them behind higher windows.
+_LOCAL_ALWAYS_VISIBLE = True
+
+
 def point_in_notch(px, py, notch):
     """드롭 지점 (px,py) GLOBAL 이 노치 rect (x,y,w,h) 안인가. notch None -> False."""
     if notch is None:
@@ -508,7 +513,8 @@ class Pet(QWidget):
         self._no_go = cfg.get("no_go") or []
         self._zone_overlays = []             # one open ZoneOverlay per monitor
         self._zone_overlay = None            # back-compat handle (first overlay)
-        _pal = os.environ.get("CLAUDLET_PALETTE") or cfg.get("palette", "auto")
+        _pal = (os.environ.get("CLAUDLET_PALETTE")
+                or petconfig.palette_for_agent(cfg, petconfig.detect_agent()))
         _rng = random.Random()
         self._palette = petconfig.resolve_palette(_pal, _rng.random(), _rng.random())
         self.engine = StateEngine(is_focused=self._is_focused,
@@ -1503,6 +1509,9 @@ class Pet(QWidget):
         if cur is None:                        # pet is on the bare desktop
             c.apply_mask(QRegion(QRect(0, 0, c.w, c.h)))
             return
+        if _LOCAL_ALWAYS_VISIBLE:
+            c.apply_mask(QRegion(QRect(0, 0, c.w, c.h)))
+            return
         try:
             i = self._wins.index(cur)
         except ValueError:
@@ -1995,6 +2004,9 @@ class Pet(QWidget):
         # the window's top edge with its body reaching ABOVE the window, so that
         # would wrongly clip the body. A contained pet sits inside the window, so
         # subtracting just the higher windows is right for it too.)
+        if _LOCAL_ALWAYS_VISIBLE:
+            self._show_full()
+            return
         try:
             i = self._wins.index(cur)
         except ValueError:

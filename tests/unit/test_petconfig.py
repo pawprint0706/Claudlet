@@ -11,7 +11,7 @@ def _write(tmp, obj):
 
 
 EMPTY = {"tool_states": {}, "event_states": {}, "raw_events": {}, "lang": "auto",
-         "roam_area": None, "no_go": [], "palette": "auto",
+         "roam_area": None, "no_go": [], "palette": "auto", "palettes": {},
          "dock": petconfig.default_dock()}
 
 
@@ -126,6 +126,28 @@ def test_palette_config_key():
     with tempfile.TemporaryDirectory() as tmp:
         assert petconfig.load_config(_write(tmp, {"palette": "shiny_teal"}))["palette"] == "shiny_teal"
         assert petconfig.load_config(_write(tmp, {}))["palette"] == "auto"
+
+
+def test_agent_palette_overrides_and_filters_invalid_entries():
+    with tempfile.TemporaryDirectory() as tmp:
+        cfg = petconfig.load_config(_write(tmp, {
+            "palette": "shiny_teal",
+            "palettes": {"codex": "shiny_violet", "claude": "default",
+                         "other": "default"},
+        }))
+        assert cfg["palettes"] == {"codex": "shiny_violet", "claude": "default"}
+        assert petconfig.palette_for_agent(cfg, "codex") == "shiny_violet"
+        assert petconfig.palette_for_agent(cfg, "claude") == "default"
+        assert petconfig.palette_for_agent(cfg, None) == "shiny_teal"
+
+
+def test_detect_agent_from_session_environment():
+    assert petconfig.detect_agent({"CODEX_THREAD_ID": "c"}) == "codex"
+    assert petconfig.detect_agent({"CODEX_SESSION_ID": "c"}) == "codex"
+    assert petconfig.detect_agent({"CLAUDE_CODE_SESSION_ID": "a"}) == "claude"
+    assert petconfig.detect_agent({"CLAUDLET_AGENT": "claude",
+                                   "CODEX_THREAD_ID": "c"}) == "claude"
+    assert petconfig.detect_agent({}) is None
 
 
 def test_dock_defaults_to_bottom_right_and_enabled():

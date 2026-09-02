@@ -1,10 +1,9 @@
 #!/usr/bin/env python3
-"""claudlet post-install setup: register the Claude Code hooks and link the
-/claudlet skill into ~/.claude/skills/. Idempotent.
+"""claudlet post-install setup for Claude Code and Codex CLI. Idempotent.
 
 With a pipx/pip install the `claudlet*` commands and Python deps (PyQt6, plus
 pyobjc-framework-Quartz on macOS) are already provided by the package, so this
-only wires claudlet into Claude Code. Run after installing:
+only wires claudlet into the coding agents. Run after installing:
 
     claudlet-install            set up hooks + skill
     claudlet-install --remove   remove hooks + skill link (package stays)
@@ -19,6 +18,8 @@ for _stream in (sys.stdout, sys.stderr):
 HERE = os.path.dirname(os.path.abspath(__file__))
 SKILLS_DIR = os.path.expanduser(os.path.join("~", ".claude", "skills"))
 SKILL_LINK = os.path.join(SKILLS_DIR, "claudlet")
+CODEX_SKILLS_DIR = os.path.expanduser(os.path.join("~", ".agents", "skills"))
+CODEX_SKILL_LINK = os.path.join(CODEX_SKILLS_DIR, "claudlet")
 SKILL_SRC = os.path.join(os.path.dirname(HERE), "skill")  # packaged skill data (claudlet/skill, not cli/skill)
 
 # README links shown when setup finishes. EN points at the repo root (GitHub
@@ -51,28 +52,40 @@ def warn(s):
 
 
 def _link_skill():
-    """Symlink the packaged skill into ~/.claude/skills/. Returns (path, note)."""
-    os.makedirs(SKILLS_DIR, exist_ok=True)
-    if os.path.exists(SKILL_LINK) and not os.path.islink(SKILL_LINK):
-        return None, "%s exists and isn't a symlink - left as-is" % SKILL_LINK
+    """Link the packaged skill into both agents' user skill directories."""
+    linked, notes = [], []
+    for skills_dir, link in ((SKILLS_DIR, SKILL_LINK),
+                             (CODEX_SKILLS_DIR, CODEX_SKILL_LINK)):
+        path, note = _link_skill_at(skills_dir, link)
+        if path:
+            linked.append(path)
+        if note:
+            notes.append(note)
+    return ", ".join(linked) or None, "; ".join(notes) or None
+
+
+def _link_skill_at(skills_dir, link):
+    os.makedirs(skills_dir, exist_ok=True)
+    if os.path.exists(link) and not os.path.islink(link):
+        return None, "%s exists and isn't a symlink - left as-is" % link
     try:
-        if os.path.islink(SKILL_LINK):
-            os.unlink(SKILL_LINK)
-        os.symlink(SKILL_SRC, SKILL_LINK, target_is_directory=True)
-        return SKILL_LINK, None
+        if os.path.islink(link):
+            os.unlink(link)
+        os.symlink(SKILL_SRC, link, target_is_directory=True)
+        return link, None
     except OSError as e:
-        if os.name == "nt" and _link_skill_junction():
-            return SKILL_LINK, None
+        if os.name == "nt" and _link_skill_junction(link):
+            return link, None
         return None, "could not link skill (%s); link it manually: %s -> %s" % (
-            e, SKILL_LINK, SKILL_SRC)
+            e, link, SKILL_SRC)
 
 
-def _link_skill_junction():
+def _link_skill_junction(link=SKILL_LINK):
     """Windows fallback: directory junctions don't need elevated privilege."""
     import subprocess
     try:
         subprocess.check_call(
-            ["cmd", "/c", "mklink", "/J", SKILL_LINK, SKILL_SRC],
+            ["cmd", "/c", "mklink", "/J", link, SKILL_SRC],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return True
     except (OSError, subprocess.CalledProcessError):
@@ -80,13 +93,14 @@ def _link_skill_junction():
 
 
 def _unlink_skill():
-    if os.path.islink(SKILL_LINK):
-        os.unlink(SKILL_LINK)
-    elif os.name == "nt" and os.path.isdir(SKILL_LINK):
-        try:
-            os.rmdir(SKILL_LINK)
-        except OSError:
-            pass
+    for link in (SKILL_LINK, CODEX_SKILL_LINK):
+        if os.path.islink(link):
+            os.unlink(link)
+        elif os.name == "nt" and os.path.isdir(link):
+            try:
+                os.rmdir(link)
+            except OSError:
+                pass
 
 
 def _pip_install(pkgs):
@@ -170,16 +184,15 @@ def _check_deps():
 
 
 def _already_installed(install_hooks):
-    """True if claudlet hooks are ALREADY registered in Claude Code settings —
+    """True if claudlet hooks are already registered in either agent —
     i.e. this run is a reinstall/update, not a first install. Must be checked
     BEFORE install_hooks.main() runs (which registers them and would make every
     run look installed). `is_ours` also matches the pre-rename claude-pet
     markers, so upgrading from an old version still counts as an update. Any
     read error -> treat as a fresh install (show both links; harmless)."""
     try:
-        s = install_hooks.load()
-        for groups in s.get("hooks", {}).values():
-            if any(install_hooks.is_ours(g) for g in groups):
+        for path in (install_hooks.SETTINGS, install_hooks.CODEX_HOOKS):
+            if install_hooks.configured(install_hooks.load(path)):
                 return True
     except Exception:
         pass
@@ -236,17 +249,19 @@ def main(argv=None):
     head("setting up claudlet")
     ok("dependencies", _check_deps())
     install_hooks.main([])
-    ok("Claude Code hooks", "registered")
+    ok("Claude Code + Codex CLI hooks", "registered")
     skill, note = _link_skill()
     if skill:
-        ok("/claudlet skill", skill)
+        ok("claudlet skills", skill)
     if note:
         warn(note)
 
     head("done")
-    print("Restart Claude Code sessions to pick up the hooks (new sessions")
-    print("auto-spawn a pet). Run one now with:  " + _c("1", "claudlet"))
-    print("Update anytime from inside Claude Code with:  " + _c("1", "/claudlet update"))
+    print("Restart Claude Code/Codex CLI sessions to pick up the hooks (new")
+    print("sessions auto-spawn a pet). In Codex, use /hooks to trust them, then")
+    print("start or resume the session once more (or invoke $claudlet now).")
+    print("Run one now with:  " + _c("1", "claudlet"))
+    print("Update from Claude with /claudlet update, or Codex with $claudlet update.")
     _print_readme(was_installed)
 
 

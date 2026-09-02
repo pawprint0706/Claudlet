@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Register (or remove) claudlet hooks in ~/.claude/settings.json.
+"""Register (or remove) claudlet hooks for Claude Code and Codex CLI.
 
 Usage:
     claudlet-install-hooks           # install
@@ -15,6 +15,9 @@ import sys
 import tempfile
 
 SETTINGS = os.path.expanduser("~/.claude/settings.json")
+CODEX_HOOKS = os.path.join(
+    os.environ.get("CODEX_HOME") or os.path.expanduser("~/.codex"),
+    "hooks.json")
 
 
 def _quote(path):
@@ -25,6 +28,11 @@ def _quote(path):
     # (its escape rules inside "" only apply to \, $, `, ", newline) while
     # still being valid, unremarkable quoting for cmd.exe and POSIX sh.
     return f'"{path}"'
+
+
+def _powershell_quote(path):
+    """Quote one literal argument for PowerShell's call operator."""
+    return "'" + path.replace("'", "''") + "'"
 
 
 def _hook_command():
@@ -49,28 +57,59 @@ def _hook_command():
 
 HOOK_CMD = _hook_command()
 
-TOOL_EVENTS = ["PreToolUse", "PostToolUse"]
-PLAIN_EVENTS = ["UserPromptSubmit", "Notification", "Stop", "StopFailure",
-                "SubagentStop", "SessionStart", "SessionEnd"]
-ALL_EVENTS = TOOL_EVENTS + PLAIN_EVENTS
+
+def _hook_command_windows():
+    """PowerShell-safe command prefix for Codex's Windows override.
+
+    A command that starts with a quoted executable path is valid in the POSIX
+    shell Claude Code uses, but PowerShell treats that quoted path as a string
+    expression and exits 1 when the event argument follows it.  Codex exposes
+    ``commandWindows`` specifically for a Windows override, so invoke the same
+    executable through PowerShell's call operator there.
+    """
+    exe = shutil.which("claudlet-hook")
+    if exe:
+        return f"& {_powershell_quote(exe)}"
+    repo_bin = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+        "bin", "claudlet-hook")
+    if os.path.exists(repo_bin):
+        return f"& {_powershell_quote(sys.executable)} {_powershell_quote(repo_bin)}"
+    return f"& {_powershell_quote(sys.executable)} -m claudlet.cli.hook"
 
 
-def load():
-    if not os.path.exists(SETTINGS):
+HOOK_CMD_WINDOWS = _hook_command_windows()
+
+CLAUDE_TOOL_EVENTS = ["PreToolUse", "PostToolUse"]
+CLAUDE_PLAIN_EVENTS = ["UserPromptSubmit", "Notification", "Stop", "StopFailure",
+                       "SubagentStop", "SessionStart", "SessionEnd"]
+CLAUDE_EVENTS = CLAUDE_TOOL_EVENTS + CLAUDE_PLAIN_EVENTS
+
+CODEX_TOOL_EVENTS = ["PreToolUse", "PostToolUse", "PermissionRequest"]
+CODEX_PLAIN_EVENTS = ["UserPromptSubmit", "Stop", "SubagentStart",
+                      "SubagentStop", "SessionStart", "SessionEnd",
+                      "PreCompact", "PostCompact"]
+CODEX_EVENTS = CODEX_TOOL_EVENTS + CODEX_PLAIN_EVENTS
+ALL_EVENTS = CLAUDE_EVENTS
+
+
+def load(path=None):
+    path = SETTINGS if path is None else path
+    if not os.path.exists(path):
         return {}
     try:
-        with open(SETTINGS, encoding="utf-8") as f:
+        with open(path, encoding="utf-8") as f:
             return json.load(f)
     except (json.JSONDecodeError, OSError) as e:
         # Corrupt/unreadable settings.json. Returning {} would drop every OTHER
         # setting the user has when we write our hooks back, so bail loudly and
         # leave their file untouched instead.
         raise SystemExit(
-            f"claudlet: cannot read {SETTINGS} ({e}).\n"
+            f"claudlet: cannot read {path} ({e}).\n"
             "Fix or move it aside, then re-run the installer.")
 
 
-def save(s):
+def save(s, path=None):
     """Write settings.json atomically, keeping a single rolling backup.
 
     The old approach renamed the live file to a timestamped .bak and *then*
@@ -80,17 +119,19 @@ def save(s):
     directory, fsync it, and os.replace() it into place (atomic on the same
     filesystem). The live file is never absent, and only one backup is kept.
     """
-    d = os.path.dirname(SETTINGS)
+    path = SETTINGS if path is None else path
+    d = os.path.dirname(path)
     os.makedirs(d, exist_ok=True)
-    if os.path.exists(SETTINGS):
-        shutil.copy2(SETTINGS, f"{SETTINGS}.bak")   # single rolling backup
-    fd, tmp = tempfile.mkstemp(dir=d, prefix=".settings.", suffix=".tmp")
+    if os.path.exists(path):
+        shutil.copy2(path, f"{path}.bak")   # single rolling backup
+    prefix = ".%s." % os.path.basename(path)
+    fd, tmp = tempfile.mkstemp(dir=d, prefix=prefix, suffix=".tmp")
     try:
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             json.dump(s, f, indent=2, ensure_ascii=False)
             f.flush()
             os.fsync(f.fileno())
-        os.replace(tmp, SETTINGS)
+        os.replace(tmp, path)
     except Exception:
         try:
             os.unlink(tmp)          # don't leave a half-written temp behind
@@ -112,32 +153,50 @@ def is_ours(group):
     return False
 
 
-def main(argv=None):
-    remove = "--remove" in (sys.argv if argv is None else argv)
-    s = load()
-    hooks = s.get("hooks", {})
+def configured(s):
+    return any(is_ours(group)
+               for groups in s.get("hooks", {}).values()
+               for group in groups)
 
-    for ev in ALL_EVENTS:
-        # drop any existing claudlet groups first (idempotent)
-        hooks[ev] = [g for g in hooks.get(ev, []) if not is_ours(g)]
-        if not remove:
-            cmd = {"type": "command", "command": f"{HOOK_CMD} {ev}"}
-            group = {"hooks": [cmd]}
-            if ev in TOOL_EVENTS:
-                group["matcher"] = "*"
-            hooks[ev].append(group)
+
+def _updated(s, events, tool_events, remove, windows_command=None):
+    hooks = s.get("hooks", {})
+    for ev in list(hooks):
+        hooks[ev] = [g for g in hooks[ev] if not is_ours(g)]
         if not hooks[ev]:
             del hooks[ev]
-
+    for ev in events:
+        if not remove:
+            cmd = {"type": "command", "command": f"{HOOK_CMD} {ev}"}
+            if windows_command:
+                cmd["commandWindows"] = f"{windows_command} {ev}"
+            group = {"hooks": [cmd]}
+            if ev in tool_events:
+                group["matcher"] = "*"
+            hooks.setdefault(ev, []).append(group)
     if hooks:
         s["hooks"] = hooks
-    elif "hooks" in s:
-        del s["hooks"]
+    else:
+        s.pop("hooks", None)
+    return s
 
-    save(s)
-    print(("removed" if remove else "installed"), "claudlet hooks:",
-          ", ".join(ALL_EVENTS))
-    print("(restart Claude Code sessions for changes to take effect)")
+
+def main(argv=None):
+    remove = "--remove" in (sys.argv if argv is None else argv)
+    targets = [
+        ("Claude Code", SETTINGS, CLAUDE_EVENTS, CLAUDE_TOOL_EVENTS, None),
+        ("Codex CLI", CODEX_HOOKS, CODEX_EVENTS, CODEX_TOOL_EVENTS,
+         HOOK_CMD_WINDOWS if os.name == "nt" else None),
+    ]
+    loaded = [(name, path, events, tools, windows, load(path))
+              for name, path, events, tools, windows in targets]
+    for name, path, events, tools, windows, settings in loaded:
+        save(_updated(settings, events, tools, remove, windows), path)
+        print(("removed" if remove else "installed"),
+              "claudlet hooks for %s:" % name, ", ".join(events))
+    print("(restart Claude Code/Codex CLI sessions for changes to take effect)")
+    if not remove:
+        print("(in Codex CLI, open /hooks, trust claudlet, then restart once more)")
 
 
 if __name__ == "__main__":

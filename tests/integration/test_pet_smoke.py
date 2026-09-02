@@ -527,8 +527,9 @@ def test_sessionend_quit_is_cancelled_by_later_event(pet):
     assert pet.snapshot()["quit_armed"] is False      # a later event cancels it
 
 
-def test_visibility_hides_with_ridden_window():
+def test_visibility_hides_with_ridden_window(monkeypatch):
     from claudlet.platform import geom as W
+    monkeypatch.setattr(P, "_LOCAL_ALWAYS_VISIBLE", False)
     p = P.Pet(session_id="hv")
     undock(p)          # 로밍/중력/퍼치 경로를 보려면 도크를 꺼야 한다
     try:
@@ -553,8 +554,9 @@ def test_visibility_hides_with_ridden_window():
         p._cleanup()
 
 
-def test_visibility_partial_cover_masks():
+def test_visibility_partial_cover_masks(monkeypatch):
     from claudlet.platform import geom as W
+    monkeypatch.setattr(P, "_LOCAL_ALWAYS_VISIBLE", False)
     p = P.Pet(session_id="hvp")
     undock(p)          # 로밍/중력/퍼치 경로를 보려면 도크를 꺼야 한다
     try:
@@ -576,8 +578,9 @@ def test_visibility_partial_cover_masks():
         p._cleanup()
 
 
-def test_visibility_perched_on_top_not_clipped_by_its_window():
+def test_visibility_perched_on_top_not_clipped_by_its_window(monkeypatch):
     from claudlet.platform import geom as W
+    monkeypatch.setattr(P, "_LOCAL_ALWAYS_VISIBLE", False)
     p = P.Pet(session_id="hvt")
     undock(p)          # 로밍/중력/퍼치 경로를 보려면 도크를 꺼야 한다
     try:
@@ -603,6 +606,7 @@ def test_visibility_perched_on_top_not_clipped_by_its_window():
 
 def test_companion_uses_pets_z_plane(monkeypatch):
     from claudlet.platform import geom as W
+    monkeypatch.setattr(P, "_LOCAL_ALWAYS_VISIBLE", False)
     p = P.Pet(session_id="hvc")
     try:
         monkeypatch.setattr(p.engine, "agents_active", lambda: 1)
@@ -627,6 +631,35 @@ def test_companion_uses_pets_z_plane(monkeypatch):
         p._wins = []
         p._occlude_companion(c)
         assert c._hidden_for_win is True and not c.isVisible()
+    finally:
+        p._cleanup()
+
+
+def test_local_always_visible_keeps_pet_and_companion_unmasked(monkeypatch):
+    from claudlet.platform import geom as W
+    monkeypatch.setattr(P, "_LOCAL_ALWAYS_VISIBLE", True)
+    p = P.Pet(session_id="hvalways")
+    undock(p)
+    try:
+        p._geom_active = True
+        base = W.Win("base", 0, 500, 800, 400, "editor", 1)
+        cover = W.Win("cover", 0, 300, 800, 400, "code", 2)
+        p._wins = [base, cover]
+        p._contain = base
+        p.x, p.y = 100.0, 450.0
+
+        p._update_visibility()
+        assert p.snapshot()["hidden"] is False
+        assert p.snapshot()["masked"] is False
+
+        monkeypatch.setattr(p.engine, "agents_active", lambda: 1)
+        p._sync_companion()
+        c = p._companion
+        c._contain = None
+        c.x = 100.0
+        c.y = base.y - P.FOOT_Y * (P.COMPANION_U / float(P.U))
+        p._occlude_companion(c)
+        assert c._hidden_for_win is False and c.isVisible()
     finally:
         p._cleanup()
 

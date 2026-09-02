@@ -19,11 +19,11 @@ editable 설치(`-e .`)라서 코드 고치면 바로 반영돼요. `pipx instal
 달라요 — pipx는 격리된 venv에 복사해 넣고 `pipx upgrade`/`pipx install --force`할
 때만 갱신되니, 그 복사본을 직접 고치려고 하지 마세요.
 
-체크아웃한 코드로 펫을 띄우고, 실제 Claude Code 세션을 여기로 연결해서 테스트할 수
+체크아웃한 코드로 펫을 띄우고, 실제 Claude Code나 Codex CLI 세션을 여기로 연결해서 테스트할 수
 있어요:
 ```bash
 claudlet             # 이 체크아웃에서 standalone 펫 실행
-claudlet-install     # 훅 + /claudlet 스킬 등록 — 실제 세션이 이 코드로 반응하게
+claudlet-install     # 훅 + 스킬 등록 — 실제 에이전트 세션이 이 코드로 반응하게
 ```
 
 ## 테스트 실행
@@ -70,7 +70,7 @@ Mac이 없어요 — 그래서 macOS 창 통합 경로(`src/claudlet/platform/ge
 ## 버그 제보 / 기능 요청
 
 GitHub 이슈로 올려주세요. OS, `claudlet-version` 출력, (펫 동작 버그라면) 관련된
-Claude Code 훅 이벤트를 알고 있다면 같이 적어주세요. 아직 내장 이벤트 로그가 없어서,
+에이전트 훅 이벤트를 알고 있다면 같이 적어주세요. 아직 내장 이벤트 로그가 없어서,
 정확한 재현 절차가 큰 도움이 돼요.
 
 ## 라이선스

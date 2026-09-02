@@ -27,10 +27,19 @@ def test_diagnose_separates_accepted_and_ignored():
 
 
 def test_diagnose_clean_config_has_no_ignored():
-    raw = {"tools": {"Bash": "work_computer"}, "lang": "ko"}
+    raw = {"tools": {"Bash": "work_computer"}, "lang": "ko",
+           "palettes": {"codex": "shiny_violet", "claude": "default"}}
     d = C.diagnose(raw)
     assert d["ignored"] == []
     assert d["accepted"]["lang"] == "ko"
+    assert d["accepted"]["palettes"] == raw["palettes"]
+
+
+def test_diagnose_reports_bad_agent_palette_entries():
+    d = C.diagnose({"palettes": {"codex": "purple", "other": "default"}})
+    assert d["accepted"]["palettes"] == {}
+    assert any("codex" in item and "purple" in item for item in d["ignored"])
+    assert any("other" in item for item in d["ignored"])
 
 
 def test_build_report_found(tmp_path):

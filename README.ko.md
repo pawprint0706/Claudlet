@@ -4,8 +4,8 @@
 
 [![PyPI](https://img.shields.io/pypi/v/claudlet)](https://pypi.org/project/claudlet/)
 
-**Claude Code**의 활동에 실시간으로 반응하는, 데스크톱 위에 사는 작은 픽셀 크리처예요.
-Claude가 작업하면 타이핑하고, 입력이 필요하면 기다리고, 끝나면 신나하고, 코딩하는 동안
+**Claude Code와 Codex CLI**의 활동에 실시간으로 반응하는, 데스크톱 위에 사는 작은 픽셀 크리처예요.
+에이전트가 작업하면 타이핑하고, 입력이 필요하면 기다리고, 끝나면 신나하고, 코딩하는 동안
 화면을 돌아다녀요. 클릭하면 터미널을 앞으로 가져와요.
 
 아트는 전부 코드로 그려서(이미지 에셋 없음) 자체 완결적이고 오리지널이에요 (아트 CC0).
@@ -52,24 +52,26 @@ Claude가 **서브에이전트**를 띄우면, 하나당 모자 쓴 작은 도�
 ## 설치
 
 [pipx](https://pipx.pypa.io)로 설치하고(격리 설치 — 의존성 자동 해결, macOS면
-`pyobjc-framework-Quartz`까지, `claudlet*` 명령을 PATH에 올려줌), Claude Code에
+`pyobjc-framework-Quartz`까지, `claudlet*` 명령을 PATH에 올려줌), Claude Code와 Codex CLI에
 연결:
 
 ```bash
 pipx install claudlet
-claudlet-install      # 훅 + /claudlet 스킬 등록 (idempotent)
+claudlet-install      # 두 에이전트의 훅 + claudlet 스킬 등록 (idempotent)
 ```
 
 버전 확인은 `claudlet-version` (설치본 vs 최신 릴리즈). **릴리즈** 최신으로는
 `pipx upgrade claudlet && claudlet-install`, **develop**(엣지) 최신으로는
 `pipx install --force "git+https://github.com/YeeDochi/Claudlet@develop" && claudlet-install`.
-어느 쪽이든 끝나면 Claude Code 세션을 다시 시작해야(`claude --continue`) 새 훅+펫
-코드가 로드돼요. 아니면 Claude Code 안에서 `/claudlet update`(릴리즈) /
-`/claudlet update latest`(master) 하고 안내 따라가면 됩니다.
+어느 쪽이든 끝나면 에이전트 세션을 다시 시작해야 새 훅+펫 코드가 로드돼요.
+Codex CLI에서는 `/hooks`를 열어 claudlet 훅을 한 번 신뢰 승인한 뒤, `SessionStart`
+훅이 실행되도록 세션을 다시 시작하거나 재개해야 합니다.
+Claude Code에서는 `/claudlet update`, Codex에서는 `$claudlet update`를 쓸 수 있어요.
 
 제거는 **순서가 중요해요 — 훅부터 떼고, 그다음 패키지 삭제.**
-`claudlet-uninstall`이 `~/.claude/settings.json`에서 훅을 떼는 *유일한* 단계라,
-패키지를 먼저 지우면 훅이 남아서 Claude Code가 없어진 `claudlet-hook`을 계속
+`claudlet-uninstall`이 `~/.claude/settings.json`과 `$CODEX_HOME/hooks.json`
+(보통 `~/.codex/hooks.json`)에서 훅을 떼는 *유일한* 단계라,
+패키지를 먼저 지우면 훅이 남아서 에이전트가 없어진 `claudlet-hook`을 계속
 실행하려 해요.
 
 ```bash
@@ -95,12 +97,13 @@ python ~/claudlet/bin/claudlet-uninstall
 rm -rf ~/claudlet                                   # Windows: rmdir /s "%USERPROFILE%\claudlet"
 ```
 
-**훅을 안 떼고 패키지부터 지워버렸다면?** 훅 항목이 아직 `~/.claude/settings.json`에
+**훅을 안 떼고 패키지부터 지워버렸다면?** 훅 항목이 Claude/Codex 훅 파일에
 남아 있어요. 잠깐 재설치해서 깔끔하게 떼면 됩니다:
 ```
 pipx install claudlet && claudlet-uninstall && pipx uninstall claudlet
 ```
-아니면 `~/.claude/settings.json`을 열어 `claudlet-hook` 항목을 직접 지우세요.
+아니면 `~/.claude/settings.json`과 `$CODEX_HOME/hooks.json`에서
+`claudlet-hook` 항목을 직접 지우세요.
 </details>
 
 <details><summary>pipx 없이 — 소스 한 줄 설치</summary>
@@ -116,7 +119,7 @@ irm https://raw.githubusercontent.com/YeeDochi/Claudlet/master/install.py | pyth
 ```
 
 pipx와 달리 이 방식은 `claudlet*` 명령을 PATH에 **안 올려요** — `~/claudlet/bin`에
-있어요. 훅은 Claude Code가 전체 경로로 불러서 그대로 동작하지만, `claudlet`·
+있어요. 훅은 에이전트가 전체 경로로 불러서 그대로 동작하지만, `claudlet`·
 `claudlet-config`·`/claudlet update` 같은 걸 직접 실행하려면 그 디렉터리를 PATH에
 추가하세요:
 ```bash
@@ -129,7 +132,7 @@ setx PATH "$env:USERPROFILE\claudlet\bin;$env:PATH"
 ```
 </details>
 
-이후 새 Claude Code 세션은 펫을 자동으로 띄워요. 이미 돌아가던 세션은 재시작해야 훅을
+이후 새 Claude Code와 Codex CLI 세션은 펫을 자동으로 띄워요. 이미 돌아가던 세션은 재시작해야 훅을
 인식해요 — 아니면 `claudlet`로 지금 하나 띄워도 돼요.
 
 **KDE Plasma**에서 가장 잘 동작해요. 창 위에 올라타기/타고 다니기는 **Windows**(Win32)와
@@ -155,20 +158,23 @@ Claude가 **서브에이전트**를 돌리면 하나당 모자 쓴 **컴패니�
 | 명령어 | 하는 일 |
 |---|---|
 | `claudlet` | 펫 바로 실행 (standalone). |
-| `claudlet-install` | Claude Code에 훅 + `/claudlet` 스킬 등록 — 설치 후 한 번 실행. |
+| `claudlet-install` | Claude Code와 Codex CLI에 훅 + claudlet 스킬 등록. |
 | `claudlet-uninstall` | 펫 종료 + 훅·스킬 해제 + 정리 (`--purge`면 설정도 삭제). |
 | `claudlet-config` | 사용자 설정 보기/생성/열기 (`--path`, `init`, `open`). |
 | `claudlet-version` | 설치된 버전 vs PyPI 최신 릴리즈 표시. |
-| `claudlet-attach` | 현재 Claude Code 세션에 펫 붙이기. |
+| `claudlet-attach` | 현재 Claude Code 또는 Codex CLI 세션에 펫 붙이기. |
 | `claudlet-motion <이름>` | 실행 중인 펫에 모션 재생 (`jump`, `wave`, … ; `stop`, `list`). |
 | `claudlet-install-hooks` | `claudlet-install`의 훅 부분만 (`--remove`로 취소). |
 | `claudlet-macos-diag` | macOS 창 좌표 원본 출력 (perch 문제 진단). |
-| `claudlet-hook` | 내부용 — Claude Code 훅이 호출, 직접 쓰는 게 아님. |
+| `claudlet-hook` | 내부용 — 에이전트 훅이 호출, 직접 쓰는 게 아님. |
 
-### `/claudlet` 스킬
+### claudlet 스킬
 
-`claudlet-install`이 `/claudlet` 스킬도 Claude Code에 링크해줘서, 프롬프트에서
-바로 펫을 조종할 수 있어요:
+`claudlet-install`이 두 에이전트에 스킬도 링크해줘서, Claude Code에서는
+`/claudlet`, Codex CLI에서는 `$claudlet`으로 바로 펫을 조종할 수 있어요:
+
+아래 예시는 Claude Code 표기이며, Codex CLI에서는 `/claudlet`을 `$claudlet`으로
+바꾸면 됩니다.
 
 - `/claudlet` — **이** 세션에 펫 붙이기 (세션 활동에 반응)
 - `/claudlet standalone` — 세션에 안 붙은 장식용 펫

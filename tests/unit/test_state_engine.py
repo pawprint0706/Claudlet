@@ -72,6 +72,14 @@ def test_agent_dispatch_does_not_change_main_state():
     assert e.agents_active() == 1
 
 
+def test_codex_spawn_agent_opens_companion():
+    e = StateEngine()
+    e.handle({"event": "PreToolUse", "session": "a",
+              "tool_name": "spawn_agent"}, now=0.0)
+    assert e.display_state(now=0.0) == "idle"
+    assert e.agents_active() == 1
+
+
 def _ev(name, sid="a", **kw):
     d = {"event": name, "session": sid}
     d.update(kw)
@@ -155,6 +163,20 @@ def test_priority_picks_attention_over_work():
     e.handle({"event": "Notification", "session": "b",
               "notification_type": "permission_prompt"}, now=0.0)
     assert e.display_state(now=0.0) == "attention"
+
+
+def test_codex_permission_request_needs_attention():
+    e = StateEngine()
+    e.handle({"event": "PermissionRequest", "session": "a",
+              "tool_name": "Bash"}, now=0.0)
+    assert e.display_state(now=0.0) == "attention"
+
+
+def test_codex_user_input_tool_waits_for_user():
+    e = StateEngine()
+    e.handle({"event": "PreToolUse", "session": "a",
+              "tool_name": "request_user_input"}, now=0.0)
+    assert e.display_state(now=0.0) == "asking"
 
 
 def test_debounce_holds_fast_tool_switch():

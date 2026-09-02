@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""claudlet-hook — per-session bridge between Claude Code and its pet.
+"""claudlet-hook — per-session bridge from Claude Code or Codex CLI to its pet.
 
-Claude Code invokes this for each hook event (event name in argv[1], JSON
+The coding agent invokes this for each hook event (event name in argv[1], JSON
 payload on stdin). It:
   * on SessionStart, launches a pet for this session if one isn't already
     running (launched from inside the session, so it inherits host app + env);
@@ -82,7 +82,7 @@ def sock_for(data):
 
 
 def resolve_claude_pid(start_pid, proc_info, max_hops=32):
-    """Walk up the parent chain from start_pid to the Claude Code process.
+    """Walk up the parent chain to the Claude Code or Codex CLI process.
 
     Claude runs hooks under a transient shell, so os.getppid() is that
     shell (which exits within ~1s) rather than the long-lived `claude`
@@ -91,7 +91,7 @@ def resolve_claude_pid(start_pid, proc_info, max_hops=32):
     contains 'claude', and give the reaper *that* pid.
 
     proc_info(pid) -> (comm, ppid) or None if the pid is gone. Returns 0
-    if no claude ancestor is found (caller then skips the reaper — the pet
+    if no agent ancestor is found (caller then skips the reaper — the pet
     simply won't self-reap, same as a manually launched one).
     """
     pid = start_pid
@@ -104,7 +104,8 @@ def resolve_claude_pid(start_pid, proc_info, max_hops=32):
         if info is None:
             return 0
         comm, ppid = info
-        if "claude" in comm:
+        comm = comm.lower()
+        if "claude" in comm or "codex" in comm:
             return pid
         pid = ppid
     return 0
@@ -224,8 +225,8 @@ def _proc_info(pid):
 
 
 def _launch_pet(session_id, host):
-    # Give the reaper the real Claude Code pid, not our transient shell parent.
-    claude_pid = resolve_claude_pid(os.getppid(), _proc_info)
+    # Give the reaper the real agent pid, not our transient shell parent.
+    agent_pid = resolve_claude_pid(os.getppid(), _proc_info)
     # Launch the pet as `python -m claudlet` with THIS interpreter so it works
     # cross-OS; detach so it outlives the hook. start_new_session is POSIX-only.
     kw = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL,
@@ -239,7 +240,7 @@ def _launch_pet(session_id, host):
     env["PYTHONPATH"] = src_dir + os.pathsep + env.get("PYTHONPATH", "")
     subprocess.Popen(
         [sys.executable, "-m", "claudlet", "--session", session_id,
-         "--host", host, "--claude-pid", str(claude_pid)], env=env, **kw)
+         "--host", host, "--claude-pid", str(agent_pid)], env=env, **kw)
 
 
 def _send(port, payload):
@@ -319,12 +320,15 @@ def main():
                   .encode())
         except Exception:
             pass  # pet not running / not ready — ignore silently
+    return (event in ("Stop", "SubagentStop")
+            and ("model" in data or "turn_id" in data))
 
 
 def _cli():
     """console-script entry point — hooks must always succeed (exit 0)."""
     try:
-        main()
+        if main():
+            print("{}")
     except Exception:
         pass
     sys.exit(0)

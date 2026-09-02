@@ -61,6 +61,8 @@ def main(argv=None):
 
     session_id = (_arg_value(argv, "--session")
                   or os.environ.get("CLAUDE_CODE_SESSION_ID")
+                  or os.environ.get("CODEX_THREAD_ID")
+                  or os.environ.get("CODEX_SESSION_ID")
                   or _newest_session_id()
                   or "default")
     host = hostinfo.detect_host()

@@ -42,6 +42,11 @@ def test_matches_claude_with_suffix():
     assert mod.resolve_claude_pid(90, info) == 80
 
 
+def test_matches_codex_with_suffix():
+    info = tree({90: ("pwsh", 80), 80: ("codex-x86_64.exe", 1)})
+    assert mod.resolve_claude_pid(90, info) == 80
+
+
 def test_proc_info_windows_branch_walks_via_win32_table(monkeypatch):
     # _proc_info has no /proc on Windows; it must fall back to a Toolhelp
     # snapshot (win32.proc_table) instead of always returning None.

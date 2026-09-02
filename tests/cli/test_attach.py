@@ -40,3 +40,16 @@ def test_attach_session_from_env(monkeypatch):
     monkeypatch.setattr(attach, "_launch", lambda args: launched.append(args))
     attach.main([])                                # no --session -> use env
     assert launched == [["--session", "envsid", "--host", "code"]]
+
+
+def test_attach_session_from_codex_env(monkeypatch):
+    monkeypatch.delenv("CLAUDE_CODE_SESSION_ID", raising=False)
+    monkeypatch.setenv("CODEX_THREAD_ID", "codexsid")
+    monkeypatch.setattr(attach.hostinfo, "detect_host", lambda: "code")
+    monkeypatch.setattr(attach.hostinfo, "pet_alive", lambda sid, **k: False)
+    launched = []
+    monkeypatch.setattr(attach, "_launch", lambda args: launched.append(args))
+
+    attach.main([])
+
+    assert launched == [["--session", "codexsid", "--host", "code"]]

@@ -25,3 +25,17 @@ def test_install_path_does_not_call_uninstall(monkeypatch):
     monkeypatch.setattr(I, "_link_skill", lambda: (None, None))
 
     I.main([])          # no exception == install path stayed clear of uninstall
+
+
+def test_link_skill_targets_claude_and_codex(monkeypatch):
+    calls = []
+    monkeypatch.setattr(I, "_link_skill_at",
+                        lambda directory, link: calls.append((directory, link)) or
+                        (link, None))
+
+    linked, note = I._link_skill()
+
+    assert calls == [(I.SKILLS_DIR, I.SKILL_LINK),
+                     (I.CODEX_SKILLS_DIR, I.CODEX_SKILL_LINK)]
+    assert I.SKILL_LINK in linked and I.CODEX_SKILL_LINK in linked
+    assert note is None

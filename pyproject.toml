@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "claudlet"
 dynamic = ["version"]
-description = "A pixel desktop buddy that reacts to Claude Code in real time"
+description = "A pixel desktop buddy that reacts to Claude Code and Codex CLI"
 readme = "README.md"
 requires-python = ">=3.8"
 license = { text = "CC0-1.0" }
 authors = [{ name = "YeeDochi" }]
-keywords = ["claude-code", "desktop-pet", "pyqt6", "hooks"]
+keywords = ["claude-code", "codex-cli", "desktop-pet", "pyqt6", "hooks"]
 dependencies = [
     "PyQt6",
     "pyobjc-framework-Quartz; sys_platform == 'darwin'",
