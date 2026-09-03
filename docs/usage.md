@@ -17,7 +17,7 @@ Claude Code / Codex CLI ──hook──▶ claudlet-hook ──loopback TCP─�
   a per-session loopback TCP socket (port published in
   `$XDG_RUNTIME_DIR/claudlet-<session>.port`; stock Windows Python builds have
   no unix domain sockets, so TCP is used everywhere for one code path) and
-  launches a pet on `SessionStart`. Never blocks Claude.
+  launches a pet on `SessionStart`. Never blocks the agent.
 
 All `bin/*` tools are Python, so they run wherever Python does.
 

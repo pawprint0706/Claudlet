@@ -15,7 +15,7 @@ Claude Code / Codex CLI ──훅──▶ claudlet-hook ──루프백 TCP─�
 - **`bin/claudlet-hook`** — 코딩 에이전트 훅 이벤트를 세션별 루프백 TCP 소켓
   (포트는 `$XDG_RUNTIME_DIR/claudlet-<세션>.port`에 기록 — 기본 Windows Python
   빌드엔 유닉스 도메인 소켓이 없어서, 코드 경로를 하나로 유지하려고 전부 TCP를 써요)으로
-  펫에 전달하고, `SessionStart` 때 펫을 띄워요. Claude를 절대 막지 않아요.
+  펫에 전달하고, `SessionStart` 때 펫을 띄워요. 에이전트를 절대 막지 않아요.
 
 `bin/*` 도구는 전부 Python이라 Python 되는 곳이면 어디서든 실행돼요.
 

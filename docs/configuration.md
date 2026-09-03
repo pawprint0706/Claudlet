@@ -2,7 +2,7 @@
 
 [← README](../README.md) · **English** | [한국어](configuration.ko.md)
 
-Remap which animation shows for which Claude Code activity in a JSON config at
+Remap which animation shows for which coding-agent activity in a JSON config at
 `~/.config/claudlet/config.json` (all keys optional).
 
 > **Tip:** run `claudlet-config` (or ask Claude `/claudlet config`) to print the
@@ -62,7 +62,10 @@ agent that started the pet:
 ```
 
 Palette values are `auto`, `default`, `shiny_teal`, and `shiny_violet`.
-`CLAUDLET_PALETTE` remains the highest-priority one-process override.
+Which agent a pet belongs to is detected from the session environment
+(`CODEX_THREAD_ID`/`CODEX_SESSION_ID` vs `CLAUDE_CODE_SESSION_ID`), falling back
+to the process that launched it. `CLAUDLET_PALETTE` remains the highest-priority
+one-process override, and `CLAUDLET_AGENT=claude|codex` forces the agent kind.
 
 ## Placement (dock)
 

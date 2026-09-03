@@ -2,7 +2,7 @@
 
 [← README](../README.ko.md) · [English](configuration.md) | **한국어**
 
-어떤 Claude Code 활동에 어떤 애니메이션을 보일지 `~/.config/claudlet/config.json`에서
+어떤 코딩 에이전트 활동에 어떤 애니메이션을 보일지 `~/.config/claudlet/config.json`에서
 재매핑해요 (모든 키 선택).
 
 > **팁:** `claudlet-config`(또는 Claude에게 `/claudlet config`) 실행하면 정확한 경로,
@@ -58,7 +58,10 @@ jump  wave  sing  juggle
 ```
 
 팔레트 값은 `auto`, `default`, `shiny_teal`, `shiny_violet`입니다.
-`CLAUDLET_PALETTE` 환경 변수는 한 프로세스에 한해 가장 높은 우선순위로 적용됩니다.
+펫이 어느 에이전트 소속인지는 세션 환경 변수(`CODEX_THREAD_ID`/`CODEX_SESSION_ID` vs
+`CLAUDE_CODE_SESSION_ID`)로 감지하고, 없으면 띄운 프로세스 이름으로 판단해요.
+`CLAUDLET_PALETTE` 환경 변수는 한 프로세스에 한해 가장 높은 우선순위로 적용되고,
+`CLAUDLET_AGENT=claude|codex`로 에이전트 종류를 강제할 수 있어요.
 
 ## 위치 (도크)
 

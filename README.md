@@ -32,7 +32,7 @@ off (💤) between tasks, and clamber over whatever else is on screen.
 
 ### Agent companions
 
-When Claude spawns **subagents**, a little hard-hatted sidekick trails your pet
+When Claude Code spawns **subagents**, a little hard-hatted sidekick trails your pet
 for each one — a duckling chain that follows it around, mirrors what the
 subagent is doing, and waves goodbye when its agent finishes.
 
@@ -145,13 +145,15 @@ pet just roams. See **[Platform support](docs/platform.md)**.
 
 ## What it shows
 
-The creature's pose tracks what Claude is doing — editing, reading, calling MCP,
+The creature's pose tracks what your agent is doing — editing, reading, calling MCP,
 thinking, waiting on your input, celebrating (see the sheet above). In **auto /
 bypass mode** it puts on a VR visor and cruises, with a per-tool variant for each
 activity. It also **perches on and rides your windows** — walking along the top or
-living inside — and clips/hides when the window it's on is covered or minimized.
+living inside. Overlapping windows don't clip it: the pet and its companions
+stay fully visible, tucking away only when the window it's living in is
+minimized or closed.
 
-When Claude runs **subagents**, a hatted **companion** appears for each one (up to
+When Claude Code runs **subagents**, a hatted **companion** appears for each one (up to
 three) and trails the pet in a duckling chain, mirroring the subagent's activity
 and leaving with a little celebration when it finishes — so you can see agent work
 happening at a glance.
@@ -175,11 +177,9 @@ happening at a glance.
 
 ### The claudlet skill
 
-`claudlet-install` links the skill into both agents. Invoke `/claudlet` in
-Claude Code or `$claudlet` in Codex CLI:
-
-The examples below use Claude Code's spelling; replace `/claudlet` with
-`$claudlet` in Codex CLI.
+`claudlet-install` links the skill into both agents — invoke it as `/claudlet`
+in Claude Code or `$claudlet` in Codex CLI (the examples below use Claude
+Code's spelling; swap in `$claudlet` for Codex).
 
 - `/claudlet` — attach a pet to **this** session (so it reacts to the session's activity)
 - `/claudlet standalone` — an unattached, decorative pet
@@ -190,7 +190,7 @@ The examples below use Claude Code's spelling; replace `/claudlet` with
 ## Docs
 
 - **[Usage & interaction](docs/usage.md)** — drag & throw, click-to-focus, tray menu, motions, autostart, uninstall
-- **[Configuration](docs/configuration.md)** — remap which animation shows for which Claude Code activity (run `claudlet-config` or `/claudlet config` to locate & inspect it)
+- **[Configuration](docs/configuration.md)** — remap which animation shows for which agent activity (run `claudlet-config` or `/claudlet config` to locate & inspect it)
 - **[Platform support](docs/platform.md)** — support matrix + how to test on your OS
 - **[Contributing](CONTRIBUTING.md)** — dev setup, running tests, code style, branch model
 - **[Changelog](https://github.com/YeeDochi/Claudlet/releases/latest)** — what changed in each release (English + Korean)
