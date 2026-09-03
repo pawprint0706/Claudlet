@@ -64,13 +64,31 @@ def _link_skill():
     return ", ".join(linked) or None, "; ".join(notes) or None
 
 
+def _link_is_ours(link):
+    """True if `link` already resolves to SKILL_SRC — a symlink anywhere, or a
+    Windows directory junction. os.path.islink() can't see junctions (they are
+    reparse points, not symlinks), so an install that used the junction fallback
+    looked like untracked clutter to every later run, which re-warned "isn't a
+    symlink" forever. samefile() follows junctions, so a junction pointing at
+    this install's packaged skill counts as linked, not as clutter."""
+    if os.path.islink(link):
+        return True
+    try:
+        return os.path.isdir(link) and os.path.samefile(link, SKILL_SRC)
+    except OSError:
+        return False
+
+
 def _link_skill_at(skills_dir, link):
     os.makedirs(skills_dir, exist_ok=True)
-    if os.path.exists(link) and not os.path.islink(link):
-        return None, "%s exists and isn't a symlink - left as-is" % link
+    if os.path.exists(link) and not _link_is_ours(link):
+        return None, "%s exists and isn't a link to the claudlet skill - left as-is" % link
+    if os.path.islink(link):
+        os.unlink(link)          # refresh: a stale symlink may point at an old install
+    if os.path.exists(link):
+        # a junction already pointing at THIS install's skill — keep it
+        return link, None
     try:
-        if os.path.islink(link):
-            os.unlink(link)
         os.symlink(SKILL_SRC, link, target_is_directory=True)
         return link, None
     except OSError as e:
