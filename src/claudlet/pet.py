@@ -116,6 +116,7 @@ UI = {
            "comp_del": "컴패니언 제거 (테스트)",
            "zone_edit": "🚫 금지구역 편집", "zone_clear": "금지구역 지우기",
            "zone_hint": "드래그: 구역 지정 · 우클릭/ESC: 끝내기",
+           "topmost": "항상 위에 보이기",
            "roam": "자유롭게 돌아다니기", "dock_reset": "제자리로 (기본 위치)"},
     "en": {"follow": "Follow cursor", "motions": "Motions",
            "float": "Pocket (peek out)", "quiet": "Quiet (mute)",
@@ -124,6 +125,7 @@ UI = {
            "comp_del": "Remove companion (test)",
            "zone_edit": "🚫 Edit no-go zones", "zone_clear": "Clear no-go zones",
            "zone_hint": "Drag to draw a zone · right-click or Esc to finish",
+           "topmost": "Always on top",
            "roam": "Roam freely", "dock_reset": "Reset dock position"},
 }
 
@@ -192,8 +194,10 @@ def _companion_flags(platform):
     return base | Qt.WindowType.WindowStaysOnTopHint
 
 
-# Local preference (upstream issue #4): while roaming, keep the pet and its
-# companion fully visible instead of clipping them behind higher windows.
+# Default for the "always on top" preference (upstream issue #4): keep the pet
+# and its companion fully visible instead of clipping them behind higher
+# windows, and re-assert WS_EX_TOPMOST so nothing covers them. Per-pet state —
+# the right-click toggle flips it back to upstream's mask-occlusion scenario.
 _LOCAL_ALWAYS_VISIBLE = True
 
 
@@ -534,6 +538,10 @@ class Pet(QWidget):
 
         self._roam_area = cfg.get("roam_area")
         self._no_go = cfg.get("no_go") or []
+        # "항상 위에 보이기" 토글의 현재 값(세션 로컬, 기본은 위 상수). True면
+        # 가림 마스킹을 끄고 topmost를 재단언하고, False면 업스트림의 마스킹
+        # 시나리오(위 창에 잘리거나 숨음)로 돌아간다.
+        self._always_visible = _LOCAL_ALWAYS_VISIBLE
         self._zone_overlays = []             # one open ZoneOverlay per monitor
         self._zone_overlay = None            # back-compat handle (first overlay)
         _pal = (os.environ.get("CLAUDLET_PALETTE")
@@ -1532,7 +1540,7 @@ class Pet(QWidget):
         if cur is None:                        # pet is on the bare desktop
             c.apply_mask(QRegion(QRect(0, 0, c.w, c.h)))
             return
-        if _LOCAL_ALWAYS_VISIBLE:
+        if self._always_visible:
             c.apply_mask(QRegion(QRect(0, 0, c.w, c.h)))
             return
         try:
@@ -1824,7 +1832,35 @@ class Pet(QWidget):
         self._win32_timer.timeout.connect(self._poll_win32_geom)
         self._win32_timer.start(220)   # measured ~0.4ms/poll; plenty of headroom
         self._geom_active = True
+        # Windows-only: StaysOnTopHint is set once at creation, but topmost is a
+        # creation-ordered BAND (a later topmost window stacks above us) and the
+        # flag itself drops after display/DPI churn. Re-assert it slowly —
+        # this is the belt-and-braces behind the always-visible behaviour.
+        self._topmost_timer = QTimer(self)
+        self._topmost_timer.timeout.connect(self._reassert_topmost)
+        self._topmost_timer.start(1000)
         self._poll_win32_geom()
+
+    def _reassert_topmost(self):
+        """Put the pet (and any companions) back at the top of the topmost band."""
+        if not getattr(self, "_always_visible", True):
+            return          # upstream scenario: stand down, let windows cover us
+        win32 = getattr(self, "_win32_geom", None)
+        if win32 is None or not self.isVisible():
+            return
+        if getattr(self, "_zone_overlays", None):
+            return          # zone-edit overlays must stay above the dimmed screen
+        try:
+            win32.ensure_topmost(int(self.winId()))
+        except Exception:
+            pass
+        for c in (getattr(self, "_companions", [])
+                  + getattr(self, "_departing", [])):
+            if c.isVisible():
+                try:
+                    win32.ensure_topmost(int(c.winId()))
+                except Exception:
+                    pass
 
     def _poll_win32_geom(self):
         try:
@@ -2027,7 +2063,7 @@ class Pet(QWidget):
         # the window's top edge with its body reaching ABOVE the window, so that
         # would wrongly clip the body. A contained pet sits inside the window, so
         # subtracting just the higher windows is right for it too.)
-        if _LOCAL_ALWAYS_VISIBLE:
+        if self._always_visible:
             self._show_full()
             return
         try:
@@ -2391,6 +2427,10 @@ class Pet(QWidget):
             a_dock_reset = QAction(self.ui["dock_reset"], m)
             m.addAction(a_dock_reset)
 
+        a_topmost = QAction(self.ui["topmost"], m, checkable=True)
+        a_topmost.setChecked(self._always_visible)
+        m.addAction(a_topmost)
+
         a_float = QAction(self.ui["float"], m, checkable=True)
         a_float.setChecked(self._floating)
         m.addAction(a_float)
@@ -2428,6 +2468,8 @@ class Pet(QWidget):
             self._toggle_dock()
         elif a_dock_reset is not None and chosen == a_dock_reset:
             self._dock_reset()
+        elif chosen == a_topmost:
+            self._toggle_topmost()
         elif chosen in motion_acts:
             name, dur = motion_acts[chosen]
             self._play_motion(name, dur)
@@ -2463,6 +2505,16 @@ class Pet(QWidget):
         self.dnd = not self.dnd
         if getattr(self, "_act_dnd", None) is not None:
             self._act_dnd.setChecked(self.dnd)
+
+    def _toggle_topmost(self):
+        """'항상 위에 보이기' 토글. 체크(기본): 가림 마스킹 없음 + topmost 재단언.
+        체크 해제: 업스트림 시나리오 — 마스킹이 돌아와 위 창에 잘리거나 숨고,
+        topmost 재단언도 멈춘다. 두 방향 모두 즉시 재평가해서 눈에 바로 보이게."""
+        self._always_visible = not self._always_visible
+        if self._always_visible:
+            self._reassert_topmost()      # 켜는 즉시 다시 맨 위로
+        self._update_visibility()         # 끄는 즉시 잘림/숨음 시작
+        self._sync_companion()
 
     def _spawn_test_companion(self, delta):
         """Test helper (right-click menu): make a companion appear/disappear

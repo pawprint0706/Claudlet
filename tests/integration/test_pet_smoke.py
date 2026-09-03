@@ -1802,6 +1802,37 @@ def test_zone_overlay_paints_even_when_empty():
         p._cleanup()
 
 
+def test_topmost_toggle_swaps_always_visible_and_upstream_masks():
+    """The menu toggle must swap behaviour, not just flip a flag. Checked
+    (default): a window fully covering the pet leaves it fully shown. Unchecked
+    ("upstream scenario"): the occlusion masking returns — the same coverage
+    hides the pet — and toggling back restores it. `_toggle_topmost` must also
+    be safe offscreen (no win32 feed, no companions)."""
+    p = P.Pet(session_id="topmosttoggle")
+    try:
+        assert p._always_visible is True          # default: our behaviour
+        p._geom_active = True
+        p.mode = "roam"
+        p._docked = False
+        p.x, p.y = 300.0, 300.0
+        contain = P.geom.Win(7, 300, 300, int(p.w), int(p.h), "host", 1)
+        cover = P.geom.Win(8, 290, 290, int(p.w) + 20, int(p.h) + 20, "term", 2)
+        p._wins = [contain, cover]                # bottom -> top stacking
+        p._contain = contain                      # pet lives INSIDE the window
+        p._update_visibility()
+        assert p._hidden_for_win is False         # covered but still visible
+        p._toggle_topmost()
+        assert p._always_visible is False
+        p._update_visibility()
+        assert p._hidden_for_win is True          # upstream: hidden when covered
+        p._toggle_topmost()
+        assert p._always_visible is True
+        p._update_visibility()
+        assert p._hidden_for_win is False         # restored on re-check
+    finally:
+        p._cleanup()
+
+
 def test_in_notch_defaults_false(pet):
     assert pet.snapshot()["in_notch"] is False
 

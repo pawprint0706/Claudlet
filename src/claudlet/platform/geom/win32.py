@@ -32,6 +32,10 @@ DWMWA_EXTENDED_FRAME_BOUNDS = 9
 DWMWA_CLOAKED = 14
 SW_RESTORE = 9
 TH32CS_SNAPPROCESS = 0x00000002
+HWND_TOPMOST = -1
+SWP_NOSIZE = 0x0001
+SWP_NOMOVE = 0x0002
+SWP_NOACTIVATE = 0x0010
 _WNDENUMPROC = (ctypes.WINFUNCTYPE(wintypes.BOOL, wintypes.HWND, wintypes.LPARAM)
                 if _HAS_WINDLL else None)   # WINFUNCTYPE is Windows-only
 
@@ -84,6 +88,10 @@ if user32 is not None:
     user32.BringWindowToTop.restype = wintypes.BOOL
     user32.AttachThreadInput.argtypes = [wintypes.DWORD, wintypes.DWORD, wintypes.BOOL]
     user32.AttachThreadInput.restype = wintypes.BOOL
+    user32.SetWindowPos.argtypes = [wintypes.HWND, wintypes.HWND,
+                                    ctypes.c_int, ctypes.c_int,
+                                    ctypes.c_int, ctypes.c_int, ctypes.c_uint]
+    user32.SetWindowPos.restype = wintypes.BOOL
 
 # GetDpiForWindow is Win10 1607+; older Windows won't have the symbol. Probe it
 # once so _dpi_scale can degrade to 1.0 (== today's physical-pixel behaviour)
@@ -382,3 +390,22 @@ def activate_hwnd(hwnd):
                 user32.AttachThreadInput(cur_thread, target_thread, False)
     except Exception:
         pass
+
+
+def ensure_topmost(hwnd):
+    """Re-assert WS_EX_TOPMOST on `hwnd` without moving, resizing or focusing it.
+
+    Qt's WindowStaysOnTopHint is applied once at window creation, but Windows
+    still lets the pet sink: topmost is a BAND ordered by creation time, so a
+    topmost window made later stacks above the pet, and the flag itself is
+    known to drop after display/DPI churn. The pet's always-visible behaviour
+    depends on staying topmost, so callers re-assert it on a slow timer; when
+    the window is already topmost this is effectively a no-op."""
+    if user32 is None or not hwnd:
+        return False
+    try:
+        return bool(user32.SetWindowPos(
+            wintypes.HWND(int(hwnd)), wintypes.HWND(HWND_TOPMOST),
+            0, 0, 0, 0, SWP_NOSIZE | SWP_NOMOVE | SWP_NOACTIVATE))
+    except Exception:
+        return False
