@@ -735,6 +735,8 @@ class Pet(QWidget):
     def _sync_dock_check(self):
         if getattr(self, "_act_dock", None) is not None:
             self._act_dock.setChecked(not self._docked)
+        if getattr(self, "_act_dock_reset", None) is not None:
+            self._act_dock_reset.setVisible(self._docked)
         if self._repack_timer is not None:
             if self._docked:
                 self._repack_timer.start(DOCK_REPACK_MS)
@@ -2515,6 +2517,9 @@ class Pet(QWidget):
             self._reassert_topmost()      # 켜는 즉시 다시 맨 위로
         self._update_visibility()         # 끄는 즉시 잘림/숨음 시작
         self._sync_companion()
+        # keep the persistent tray checkbox in step (pet menu and tray share this)
+        if getattr(self, "_act_topmost", None) is not None:
+            self._act_topmost.setChecked(self._always_visible)
 
     def _spawn_test_companion(self, delta):
         """Test helper (right-click menu): make a companion appear/disappear
@@ -2596,6 +2601,8 @@ class Pet(QWidget):
         self._act_float = None
         self._act_follow = None
         self._act_dock = None
+        self._act_dock_reset = None
+        self._act_topmost = None
         if not QSystemTrayIcon.isSystemTrayAvailable():
             self.tray = None
             return
@@ -2632,6 +2639,14 @@ class Pet(QWidget):
             act_dock_reset = QAction(self.ui["dock_reset"], m)
             m.addAction(act_dock_reset)
             act_dock_reset.triggered.connect(self._dock_reset)
+            # 펫 메뉴와 같게: 배회 중엔 되돌릴 도크 자리가 없으니 숨긴다
+            act_dock_reset.setVisible(self._docked)
+            self._act_dock_reset = act_dock_reset
+
+            self._act_topmost = QAction(self.ui["topmost"], m, checkable=True)
+            self._act_topmost.setChecked(self._always_visible)
+            m.addAction(self._act_topmost)
+            self._act_topmost.triggered.connect(self._toggle_topmost)
 
             self._act_float = QAction(self.ui["float"], m, checkable=True)
             m.addAction(self._act_float)
