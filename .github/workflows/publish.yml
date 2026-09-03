@@ -11,6 +11,11 @@ on:
 
 jobs:
   publish:
+    # Fork safety: PyPI publishing belongs to the upstream repo only. A fork
+    # pushing a v* tag must NOT run this workflow — the PyPI pending publisher
+    # is bound to YeeDochi/Claudlet, so the upload would fail anyway, but the
+    # run itself would still burn minutes and leave a confusing failure.
+    if: github.repository == 'YeeDochi/Claudlet'
     runs-on: ubuntu-latest
     permissions:
       id-token: write            # required for Trusted Publishing (OIDC)
