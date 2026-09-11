@@ -107,7 +107,7 @@ def tool_to_state(tool_name):
 
 class _Session:
     __slots__ = ("state", "since", "expiry", "last_event", "pending", "agents",
-                 "agent_state", "agent_gone_since")
+                 "agent_starts", "agent_state", "agent_gone_since")
 
     def __init__(self, now):
         self.state = "idle"
@@ -116,6 +116,7 @@ class _Session:
         self.last_event = now
         self.pending = None    # deferred work state (debounce)
         self.agents = 0        # open subagent windows (PreToolUse Agent .. SubagentStop)
+        self.agent_starts = 0  # PreToolUse starts awaiting Codex SubagentStart
         self.agent_state = None  # subagent's current activity, for the companion
         self.agent_gone_since = None  # ts the snapshot emptied (depart-grace timer)
 
@@ -173,6 +174,7 @@ class StateEngine:
 
         if name == "SessionStart":
             s.agents = 0                       # fresh session -> no open agents
+            s.agent_starts = 0
             s.agent_state = None
             s.agent_gone_since = None
             s.set_state(self._events["start"], now)
@@ -193,10 +195,8 @@ class StateEngine:
                 # work; mirroring them just made the companion copy the main
                 # creature. It shows its own life instead: thinking while
                 # active, idle while waiting on background work.
-                s.agents += 1
-                s.agent_gone_since = None        # a fresh dispatch is active work
-                if not s.agent_state:
-                    s.agent_state = "thinking"   # agent spinning up
+                self._start_agent(s, now)
+                s.agent_starts += 1
             elif tool in ASK_TOOLS:
                 s.set_state(self._events["asking"], now)   # waiting on the user
             else:
@@ -214,10 +214,18 @@ class StateEngine:
                 s.set_state(self._events["idle_prompt"], now)
         elif name == "PermissionRequest":
             s.set_state(self._events["permission"], now)
+        elif name == "SubagentStart":
+            # Codex Desktop can emit this without exposing its Agent tool call
+            # to PreToolUse. When both arrive, PreToolUse already opened it.
+            if s.agent_starts:
+                s.agent_starts -= 1
+            else:
+                self._start_agent(s, now)
         elif name == "SubagentStop":
             if not self._reconcile_agents(s, ev, now):
                 s.agents = max(0, s.agents - 1)    # legacy: one subagent finished
                 if s.agents == 0:
+                    s.agent_starts = 0
                     s.agent_state = None
         elif name == "Stop":
             # The MAIN turn ended, but background subagents keep running past it.
@@ -238,6 +246,13 @@ class StateEngine:
             # any other event the user mapped by raw name (PostToolUse, etc.)
             s.set_state(self._raw[name], now)
         # otherwise (PostToolUse/SubagentStop/… unmapped): liveness refresh only
+
+    @staticmethod
+    def _start_agent(s, now):
+        s.agents += 1
+        s.agent_gone_since = None
+        if not s.agent_state:
+            s.agent_state = "thinking"
 
     def _reconcile_agents(self, s, ev, now):
         """Set the companion count from Claude Code's background_tasks snapshot,

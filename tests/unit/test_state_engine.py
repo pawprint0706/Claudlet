@@ -80,6 +80,24 @@ def test_codex_spawn_agent_opens_companion():
     assert e.agents_active() == 1
 
 
+def test_codex_subagent_start_opens_companion_without_pretool():
+    e = StateEngine()
+    e.handle(_ev("SubagentStart", agent_id="codex-1"), now=0.0)
+    assert e.display_state(now=0.0) == "idle"
+    assert e.agents_active() == 1
+    e.handle(_ev("SubagentStop", agent_id="codex-1"), now=1.0)
+    assert e.agents_active() == 0
+
+
+def test_codex_subagent_start_confirms_pretool_without_duplicate_companion():
+    e = StateEngine()
+    e.handle(_ev("PreToolUse", tool_name="spawn_agent"), now=0.0)
+    e.handle(_ev("SubagentStart", agent_id="codex-1"), now=0.1)
+    assert e.agents_active() == 1
+    e.handle(_ev("SubagentStop", agent_id="codex-1"), now=1.0)
+    assert e.agents_active() == 0
+
+
 def _ev(name, sid="a", **kw):
     d = {"event": name, "session": sid}
     d.update(kw)
